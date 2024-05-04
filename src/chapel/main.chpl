@@ -40,6 +40,8 @@ module Main {
 
     /* Get problem dimension */
     proc get_problem_size(option: string) {
-        return try! option: int;
+        const N = try! option: int;
+        try! stderr.writeln("Problem size: ", N);
+        return N;
     }
 }
