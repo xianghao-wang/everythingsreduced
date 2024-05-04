@@ -1,6 +1,8 @@
 module Main {
     use IO;
 
+    use Dot;
+
     proc main(args: [] string) {
         if args.size < 2 {
             try! stderr.write("Usage: ", args[0], " <benchmark> <options>\n"
@@ -21,6 +23,7 @@ module Main {
             when "dot" {
                 check_for_option(args.size);
                 const N = get_problem_size(args[2]);
+                bench_dot(N);
             }
 
             otherwise {
