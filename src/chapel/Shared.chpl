@@ -2,11 +2,8 @@ module Shared {
     use IO;
     use Time;
     
-    config param useGPU = false;
     config param TBSIZE = 1024;
     config param NITERS = 100;
-
-    const reduceLocale = if useGPU then here.gpus[0] else here;
 
     param LINE = "------------------------------------------------------------"
                  + "--------------------";
