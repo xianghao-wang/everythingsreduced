@@ -1,5 +1,7 @@
 module Dot {
     use Time;
+    use GPU;
+    use GpuDiagnostics;
 
     use Shared;
 
@@ -21,10 +23,48 @@ module Dot {
         }
 
         proc run(): real {
+            // startVerboseGpu();
+
             var sum: real = 0.0;
-            forall (a, b) in zip(A, B) with (+ reduce sum) {
-                sum += a * b;
+            const DOT_NUM_BLOCKS = (N + TBSIZE - 1) / TBSIZE;
+            
+            on gpuLocale {
+                var blockSum: [0..#DOT_NUM_BLOCKS] real = noinit;
+                const numThreads = TBSIZE * DOT_NUM_BLOCKS;
+                
+                @assertOnGpu @gpu.blockSize(TBSIZE) foreach i in 0..#numThreads {
+                    var tbSum = createSharedArray(real, TBSIZE);
+                    const localI = i % TBSIZE;
+
+                    // reduce elements to each thread
+                    tbSum[localI] = 0.0;
+                    var j = i;
+                    while j < N {
+                        tbSum[localI] += A[j] * B[j];
+                        j += numThreads;
+                    }
+
+                    // reduce threads in a block
+                    var offset = TBSIZE / 2;
+                    while offset > 0 {
+                        syncThreads();
+                        if localI < offset {
+                            tbSum[localI] += tbSum[localI+offset];
+                        }
+                        offset /= 2;
+                    }
+
+                    if localI == 0 {
+                        const blockIdxX = i / TBSIZE;
+                        blockSum[blockIdxX] = tbSum[localI];
+                    }
+                }
+
+                sum = + reduce blockSum;
             }
+
+            // stopVerboseGpu();
+
             return sum;
         }
 
@@ -42,17 +82,19 @@ module Dot {
     proc bench_dot(N: int) {
         var results: [0..#NITERS] real = noinit;
         var start, tConstruct, tSetup, tRun, tCheck, tTeardown: real;
-        
+        var dot_: unmanaged Dot?;
+
         // Construct
         start = current_seconds();
-        const dot = new unmanaged Dot(N);
+        on gpuLocale do dot_ = new unmanaged Dot(N);
         tConstruct = current_seconds() - start;
-
+        
+        var dot = try! dot_ : unmanaged Dot;
         const amount = dot.gigabytes();
 
         // Setup
         start = current_seconds();
-        dot.setup();
+        on gpuLocale do dot.setup();
         tSetup = current_seconds() - start;
 
         // Run
@@ -81,12 +123,11 @@ module Dot {
 
         // Teardown
         start = current_seconds();
-        // delete dot;
         delete dot;
         tTeardown = current_seconds() - start;
 
         print_timing("Dot Product"
             , tConstruct, tSetup, tRun, tCheck, tTeardown
-            , NITERS: real * amount);
+            , NITERS * amount);
     }
 }

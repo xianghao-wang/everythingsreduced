@@ -16,6 +16,7 @@ module Main {
         }
 
         const name = args[1];
+        const gpuLocale = here.gpus[0];
 
         writeln("Unit of time: milliseconds\n");
 

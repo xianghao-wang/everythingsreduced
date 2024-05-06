@@ -4,6 +4,7 @@ module Shared {
     
     config param TBSIZE = 1024;
     config param NITERS = 100;
+    const gpuLocale = here.gpus[0];
 
     param LINE = "------------------------------------------------------------"
                  + "--------------------";
