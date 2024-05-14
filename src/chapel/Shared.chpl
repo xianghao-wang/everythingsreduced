@@ -11,6 +11,11 @@ module Shared {
 
     param epsilon: real = 1e-16;
 
+    record Complex {
+        var re: real;
+        var im: real;
+    }
+
     proc current_seconds(): real {
         return timeSinceEpoch().totalSeconds();
     }
