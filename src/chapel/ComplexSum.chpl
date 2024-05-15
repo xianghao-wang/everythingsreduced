@@ -7,7 +7,7 @@ module ComplexSum {
     class ComplexSum {
         var N: int;
         const vecDom = 0..#N;
-        var A: [vecDom] complex = noinit;
+        var A: [vecDom] Complex = noinit;
 
         proc init(N: int) {
             this.N = N;
@@ -15,65 +15,30 @@ module ComplexSum {
 
         proc setup() {
             const v = 2.0 * 1024 / N: real;
-            const u = (v, v): complex;
             @assertOnGpu forall i in vecDom {
-                A[i] = u;
+                A[i].re = v;
+                A[i].im = v;
             }
         }
 
-        proc run(): complex {
-            var sum = (0.0, 0.0): complex;
-            const DOT_NUM_BLOCKS = (N + TBSIZE - 1) / TBSIZE;
-
-            on gpuLocale {
-                const zero = (0.0, 0.0): complex;
-                var blockSum: [0..#DOT_NUM_BLOCKS] complex = noinit;
-                const numThreads = TBSIZE * DOT_NUM_BLOCKS;
-
-                @assertOnGpu @gpu.blockSize(TBSIZE) foreach i in 0..#numThreads {
-                    var tbSum = createSharedArray(complex, TBSIZE);
-                    const localI = i % TBSIZE;
-                    
-                    tbSum[localI] = zero;
-                    var j = i;
-                    while j < N {
-                        tbSum[localI] += A[j];
-                        j += numThreads;
-                    }
-
-                    var offset = TBSIZE / 2;
-                    while offset > 0 {
-                        syncThreads();
-                        if localI < offset {
-                            tbSum[localI] += tbSum[localI+offset];
-                        }
-                        offset /= 2;
-                    }
-
-                    if localI == 0 {
-                        const blockIdxX = i / TBSIZE;
-                        blockSum[blockIdxX] = tbSum[localI];
-                    }
-                }
-
-                sum = + reduce blockSum;
-            }
+        proc run(): Complex {
+            var sum = new Complex(0.0, 0.0);
 
             return sum;
         }
 
-        proc expect(): complex {
+        proc expect(): Complex {
             const v = 2.0 * 1024.0;
-            return (v, v): complex;
+            return new Complex(v, v);
         }
 
         proc gigabytes(): real {
-            return 1e-9 * c_sizeof(complex) * N;
+            return 1e-9 * 2 * 8 * N;
         }
     }
 
     proc bench_complex_sum(N: int) {
-        var results: [0..#NITERS] complex = noinit;
+        var results: [0..#NITERS] Complex = noinit;
         var start, tConstruct, tSetup, tRun, tCheck, tTeardown: real;
         var bench_: unmanaged ComplexSum?;
 
@@ -102,16 +67,24 @@ module ComplexSum {
         for i in results.domain {
             const res = results[i];
             const exp = bench.expect();
-            const diff = abs(exp - res);
-
+            const diff = res.distance(exp);
             if diff > epsilon * 100.0 {
                 print_difference("Complex Sum", "reuslt incorrect", i
-                        , exp: string
-                        , res: string
+                        , exp.str()
+                        , res.str()
                         , diff: string);
                 break;
             }
         }
         tCheck = current_seconds() - start;
+
+        // Teardown
+        start = current_seconds();
+        delete bench;
+        tTeardown = current_seconds() - start;
+
+        print_timing("Complex Sum"
+            , tConstruct, tSetup, tRun, tCheck, tTeardown
+            , NITERS * amount);
     }
 }

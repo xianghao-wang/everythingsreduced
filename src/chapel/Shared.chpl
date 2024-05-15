@@ -14,6 +14,15 @@ module Shared {
     record Complex {
         var re: real;
         var im: real;
+
+        proc distance(a: Complex) {
+            const diff = new Complex(re - a.re, im - a.im);
+            return diff.re * diff.re + diff.im * diff.im;
+        }
+
+        proc str() {
+            return re: string + "+" + im: string + "i";
+        }
     }
 
     proc current_seconds(): real {
