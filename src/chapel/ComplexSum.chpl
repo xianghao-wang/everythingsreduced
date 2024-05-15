@@ -24,6 +24,46 @@ module ComplexSum {
         proc run(): Complex {
             var sum = new Complex(0.0, 0.0);
 
+            on gpuLocale {
+                const DOT_NUM_BLOCKS = (N + TBSIZE - 1) / TBSIZE;
+                const numThreads = TBSIZE * DOT_NUM_BLOCKS;
+                var blockSum: [0..#DOT_NUM_BLOCKS] Complex = noinit;
+                
+                @assertOnGpu @gpu.blockSize(TBSIZE) foreach i in 0..#numThreads {
+                    var tbSum = createSharedArray(real, TBSIZE * 2);
+                    const localI = i % TBSIZE;
+
+                    // reduce elements to each thread
+                    tbSum[2 * localI] = 0.0;
+                    tbSum[2 * localI + 1] = 0.0;
+                    var j = i;
+                    while j < N {
+                        tbSum[2 * localI] += A[j].re;
+                        tbSum[2 * localI + 1] += A[j].im;
+                        j += numThreads;
+                    } 
+
+                    // reduce threads in a block
+                    var offset = TBSIZE / 2;
+                    while offset > 0 {
+                        syncThreads();
+                        if localI < offset {
+                            tbSum[2 * localI] += tbSum[2 * (localI+offset)];
+                            tbSum[2 * localI + 1] += tbSum[2 * (localI+offset) + 1];
+                        }
+                        offset /= 2;
+                    }
+
+                    if localI == 0 {
+                        const blockIdxX = i / TBSIZE;
+                        blockSum[blockIdxX].re = tbSum[0];
+                        blockSum[blockIdxX].im = tbSum[1];
+                    }
+                }
+
+                sum = + reduce blockSum;
+            }
+
             return sum;
         }
 
