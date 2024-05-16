@@ -3,6 +3,7 @@ module Main {
 
     use Dot;
     use ComplexSum;
+    use ComplexSumSOA;
 
     proc main(args: [] string) {
         if args.size < 2 {
@@ -32,6 +33,12 @@ module Main {
                 check_for_option(args.size);
                 const N = get_problem_size(args[2]);
                 bench_complex_sum(N);
+            }
+
+            when "complex_sum_soa" {
+                check_for_option(args.size);
+                const N = get_problem_size(args[2]);
+                bench_complex_sum_soa(N);
             }
 
             otherwise {
