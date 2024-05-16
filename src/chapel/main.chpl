@@ -4,6 +4,7 @@ module Main {
     use Dot;
     use ComplexSum;
     use ComplexSumSOA;
+    use FieldSummary;
 
     proc main(args: [] string) {
         if args.size < 2 {
@@ -39,6 +40,10 @@ module Main {
                 check_for_option(args.size);
                 const N = get_problem_size(args[2]);
                 bench_complex_sum_soa(N);
+            }
+
+            when "field_summary" {
+                bench_field_summary();
             }
 
             otherwise {
