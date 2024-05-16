@@ -22,10 +22,11 @@ module ComplexSum {
         }
 
         proc run(): Complex {
-            var sum = new Complex(0.0, 0.0);
+            const DOT_NUM_BLOCKS = (N + TBSIZE - 1) / TBSIZE;
+            var blockSumHost: [0..#DOT_NUM_BLOCKS] Complex = noinit;
 
             on gpuLocale {
-                const DOT_NUM_BLOCKS = (N + TBSIZE - 1) / TBSIZE;
+                
                 const numThreads = TBSIZE * DOT_NUM_BLOCKS;
                 var blockSum: [0..#DOT_NUM_BLOCKS] Complex = noinit;
                 
@@ -61,10 +62,10 @@ module ComplexSum {
                     }
                 }
 
-                sum = + reduce blockSum;
+                blockSumHost = blockSum;
             }
 
-            return sum;
+            return + reduce blockSumHost;
         }
 
         proc expect(): Complex {

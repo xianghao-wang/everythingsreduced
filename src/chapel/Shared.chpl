@@ -23,6 +23,10 @@ module Shared {
         proc str() {
             return re: string + "+" + im: string + "i";
         }
+
+        operator +(a: Complex, b: Complex) {
+            return new Complex(a.re + b.re, a.im + b.im);
+        }
     }
 
     proc current_seconds(): real {
