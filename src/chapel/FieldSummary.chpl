@@ -1,5 +1,6 @@
 module FieldSummary {
     use CTypes;
+    use GPU;
     
     use Shared;
 
@@ -9,6 +10,10 @@ module FieldSummary {
         var ie: real;
         var ke: real;
         var press: real;
+
+        operator +(a: FieldStatus, b: FieldStatus) {
+            return new FieldStatus(a.vol + b.vol, a.mass + b.mass, a.ie + b.ie, a.ke + b.ke, a.press + b.press);
+        }
     }
 
     class FieldSummary {
@@ -54,42 +59,77 @@ module FieldSummary {
         }
 
         proc run(): FieldStatus {
-            // const DOT_NUM_BLOCKS = (N + TBSIZE - 1) / TBSIZE;
-            // var blockSumHost: [0..#DOT_NUM_BLOCKS] FieldStatus = noinit;
+            const DOT_NUM_BLOCKS = (ny + TBSIZE - 1) / TBSIZE;
+            var blockSumHost: [0..#DOT_NUM_BLOCKS] FieldStatus = noinit;
             
-            // on gpuLocale {
-            //     const numThreads = TBSIZE * DOT_NUM_BLOCKS;
-            //     var blockSum: [0..#DOT_NUM_BLOCKS] FieldStatus = noinit;
+            on gpuLocale {
+                const numThreads = TBSIZE * DOT_NUM_BLOCKS;
+                var blockSum: [0..#DOT_NUM_BLOCKS] FieldStatus = noinit;
 
-            //     @assertOnGpu @gpu.blockSize(TBSIZE) foreach i in 0..#numThreads {
-            //         var tbSum = createSharedArray(real, TBSIZE * 5);
-            //         const localI = i % TBSIZE;
+                @assertOnGpu @gpu.blockSize(TBSIZE) foreach i in 0..#numThreads {
+                    var tbSum = createSharedArray(real, TBSIZE * 5);
+                    const localI = i % TBSIZE;
 
-            //         tbSum[5 * localI] = 0.0;        // vol
-            //         tbSum[5 * localI + 1] = 0.0;    // mass
-            //         tbSum[5 * localI + 2] = 0.0;    // ie
-            //         tbSum[5 * localI + 3] = 0.0;    // ke
-            //         tbSum[5 * localI + 4] = 0.0;    // press
+                    tbSum[5 * localI] = 0.0;        // vol
+                    tbSum[5 * localI + 1] = 0.0;    // mass
+                    tbSum[5 * localI + 2] = 0.0;    // ie
+                    tbSum[5 * localI + 3] = 0.0;    // ke
+                    tbSum[5 * localI + 4] = 0.0;    // press
 
-            //         // Reduce to threads
-            //         var j = i;
-            //         while j < N {
-            //             foreach j in 0..#nx {
-            //                 var vsqrd = 0.0;
-            //                 for kv in k..k+1 {
-            //                     for jv in j..j+1 {
-            //                         vsqrd += 0.25 * (xvel[jv + kv * (nx + 1)] * xvel[jv + kv * (nx + 1)] +
-            //                         yvel[jv + kv * (nx + 1)] * yvel[jv + kv * (nx + 1)]);
-            //                     }
-            //                 }
-            //             }
-            //             const cell_volume = volume[j + k * nx];
-            //             j += numThreads;
-            //         }
-            //     }
-            // }
+                    // Reduce to threads
+                    var y = i;
+                    while y < ny {
+                        for x in 0..#nx {
+                            var vsqrd = 0.0;
+                            for yv in y..y+1 {
+                                for xv in x..x+1 {
+                                    vsqrd += 0.25 * (
+                                        xvel[xv + yv * (nx + 1)] * xvel[xv + yv * (nx + 1)] +
+                                        yvel[xv + yv * (nx + 1)] * yvel[xv + yv * (nx + 1)]
+                                    );
+                                }
+                            }
 
-            return new FieldStatus(0.0, 0.0, 0.0, 0.0, 0.0);
+                            const cell_volume = volume[x + y * nx];
+                            const cell_mass = cell_volume * density[x + y * nx];
+                            tbSum[5 * localI] += cell_volume;
+                            tbSum[5 * localI + 1] += cell_mass;
+                            tbSum[5 * localI + 2] += cell_mass * energy[x + y * nx];
+                            tbSum[5 * localI + 3] += cell_mass * 0.5 * vsqrd;
+                            tbSum[5 * localI + 4] += cell_volume * pressure[x + y * nx];
+                        }
+
+                        y += numThreads;
+                    }
+
+                    // reduce threads in a block
+                    var offset = TBSIZE / 2;
+                    while offset > 0 {
+                        syncThreads();
+                        if localI < offset {
+                            tbSum[5 * localI] += tbSum[5 * (localI + offset)];
+                            tbSum[5 * localI + 1] += tbSum[5 * (localI + offset) + 1];
+                            tbSum[5 * localI + 2] += tbSum[5 * (localI + offset) + 2];
+                            tbSum[5 * localI + 3] += tbSum[5 * (localI + offset) + 3];
+                            tbSum[5 * localI + 4] += tbSum[5 * (localI + offset) + 4];
+                        }
+                        offset /= 2;
+                    }
+
+                    if localI == 0 {
+                        const blockIdxX = i / TBSIZE;
+                        blockSum[blockIdxX].vol = tbSum[0];
+                        blockSum[blockIdxX].mass = tbSum[1];
+                        blockSum[blockIdxX].ie = tbSum[2];
+                        blockSum[blockIdxX].ke = tbSum[3];
+                        blockSum[blockIdxX].press = tbSum[4];
+                    }
+                }
+
+                blockSumHost = blockSum;
+            }
+
+            return + reduce blockSumHost;
         }
 
         proc expect(): FieldStatus {
