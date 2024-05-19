@@ -15,7 +15,7 @@ module ComplexSum {
 
         proc setup() {
             const v = 2.0 * 1024 / N: real;
-            @assertOnGpu forall i in vecDom {
+            forall i in vecDom {
                 A[i].re = v;
                 A[i].im = v;
             }
@@ -67,10 +67,11 @@ module ComplexSum {
                     sum = + reduce blockSumHost;
                 }
             } else {
-                
+                forall c in A with (+ reduce sum) {
+                    sum += c;
+                }
             }
 
-            // return + reduce blockSumHost;
             return sum;
         }
 

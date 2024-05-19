@@ -26,7 +26,7 @@ module Shared {
             return re: string + "+" + im: string + "i";
         }
 
-        operator +(a: Complex, b: Complex) {
+        operator +(const ref a: Complex, const ref b: Complex) {
             return new Complex(a.re + b.re, a.im + b.im);
         }
     }
