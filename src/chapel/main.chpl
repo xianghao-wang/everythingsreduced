@@ -29,7 +29,11 @@ module Main {
             when "dot" {
                 check_for_option(args.size);
                 const N = get_problem_size(args[2]);
-                on reduceLocale do bench_dot(N);
+                if useGPU {
+                    on reduceLocale do bench_dot(N);
+                } else {
+                    bench_dot(N);
+                }
             }
 
             when "complex_sum" {

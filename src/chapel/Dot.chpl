@@ -22,9 +22,9 @@ module Dot {
 
         proc run(): real {
             var sum: real = 0.0;
-            
+
             if useGPU {
-                const DOT_NUM_BLOCKS = (N + TBSIZE - 1) / TBSIZE;
+                const DOT_NUM_BLOCKS = min((N + TBSIZE - 1) / TBSIZE, 256);
                 var blockSum: [0..#DOT_NUM_BLOCKS] real = noinit;
                 const numThreads = TBSIZE * DOT_NUM_BLOCKS;
                 
