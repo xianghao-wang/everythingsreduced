@@ -2,16 +2,32 @@ module Shared {
     use IO;
     use Time;
     
-    config param useGPU = false;
     config param TBSIZE = 1024;
     config param NITERS = 100;
-
-    const reduceLocale = if useGPU then here.gpus[0] else here;
+    config param useGPU = false;
 
     param LINE = "------------------------------------------------------------"
                  + "--------------------";
 
     param epsilon: real = 1e-16;
+
+    record Complex {
+        var re: real;
+        var im: real;
+
+        proc distance(a: Complex) {
+            const diff = new Complex(re - a.re, im - a.im);
+            return diff.re * diff.re + diff.im * diff.im;
+        }
+
+        proc str() {
+            return re: string + "+" + im: string + "i";
+        }
+
+        operator +(a: Complex, b: Complex) {
+            return new Complex(a.re + b.re, a.im + b.im);
+        }
+    }
 
     proc current_seconds(): real {
         return timeSinceEpoch().totalSeconds();

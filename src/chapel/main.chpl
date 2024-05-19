@@ -1,7 +1,11 @@
 module Main {
     use IO;
 
-    use Dot;
+    // use Dot;
+    // use ComplexSum;
+    // use ComplexSumSOA;
+    // use ComplexMin;
+    // use FieldSummary;
 
     proc main(args: [] string) {
         if args.size < 2 {
@@ -23,7 +27,29 @@ module Main {
             when "dot" {
                 check_for_option(args.size);
                 const N = get_problem_size(args[2]);
-                bench_dot(N);
+                // bench_dot(N);
+            }
+
+            when "complex_sum" {
+                check_for_option(args.size);
+                const N = get_problem_size(args[2]);
+                // bench_complex_sum(N);
+            }
+
+            when "complex_sum_soa" {
+                check_for_option(args.size);
+                const N = get_problem_size(args[2]);
+                // bench_complex_sum_soa(N);
+            }
+
+            when "complex_min" {
+                check_for_option(args.size);
+                const N = get_problem_size(args[2]);
+                // bench_complex_min(N);
+            }
+
+            when "field_summary" {
+                // bench_field_summary();
             }
 
             otherwise {
