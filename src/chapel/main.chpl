@@ -1,7 +1,8 @@
 module Main {
     use IO;
 
-    // use Dot;
+    use Shared;
+    use Dot;
     // use ComplexSum;
     // use ComplexSumSOA;
     // use ComplexMin;
@@ -20,6 +21,7 @@ module Main {
         }
 
         const name = args[1];
+        const reduceLocale = if useGPU then here.gpus[0] else here;
 
         writeln("Unit of time: milliseconds\n");
 
@@ -27,7 +29,7 @@ module Main {
             when "dot" {
                 check_for_option(args.size);
                 const N = get_problem_size(args[2]);
-                // bench_dot(N);
+                on reduceLocale do bench_dot(N);
             }
 
             when "complex_sum" {
