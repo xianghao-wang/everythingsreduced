@@ -6,6 +6,8 @@ module Shared {
     config param NITERS = 100;
     config param useGPU = false;
 
+    const hostLocale = here;
+
     param LINE = "------------------------------------------------------------"
                  + "--------------------";
 

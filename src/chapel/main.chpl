@@ -3,7 +3,7 @@ module Main {
 
     use Shared;
     use Dot;
-    // use ComplexSum;
+    use ComplexSum;
     // use ComplexSumSOA;
     // use ComplexMin;
     // use FieldSummary;
@@ -39,7 +39,11 @@ module Main {
             when "complex_sum" {
                 check_for_option(args.size);
                 const N = get_problem_size(args[2]);
-                // bench_complex_sum(N);
+                if useGPU {
+                    on reduceLocale do bench_complex_sum(N);
+                } else {
+                    bench_complex_sum(N);
+                }
             }
 
             when "complex_sum_soa" {
