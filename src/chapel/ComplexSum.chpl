@@ -67,9 +67,7 @@ module ComplexSum {
                     sum = + reduce blockSumHost;
                 }
             } else {
-                forall c in A with (+ reduce sum) {
-                    sum += c;
-                }
+                sum = + reduce A;
             }
 
             return sum;
