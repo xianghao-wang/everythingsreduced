@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
+#include <cmath>
 #include <sstream>
 #ifndef ONEDPL_MODEL
 #include <sycl.hpp>
