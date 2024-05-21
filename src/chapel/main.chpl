@@ -6,7 +6,7 @@ module Main {
     use ComplexSum;
     // use ComplexSumSOA;
     // use ComplexMin;
-    // use FieldSummary;
+    use FieldSummary;
 
     proc main(args: [] string) {
         if args.size < 2 {
@@ -59,7 +59,11 @@ module Main {
             }
 
             when "field_summary" {
-                // bench_field_summary();
+                if useGPU {
+                    on reduceLocale do bench_field_summary();
+                } else {
+                    bench_field_summary();
+                }
             }
 
             when "all" {
@@ -70,10 +74,12 @@ module Main {
                     on reduceLocale {
                         bench_dot(N);
                         bench_complex_sum(N);
+                        bench_field_summary();
                     }
                 } else {
                     bench_dot(N);
                     bench_complex_sum(N);
+                    bench_field_summary();
                 }
             }
 
