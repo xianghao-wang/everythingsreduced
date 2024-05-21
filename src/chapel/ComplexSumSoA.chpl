@@ -26,7 +26,7 @@ module ComplexSumSoA {
             var result: Complex;
             
             if useGPU {
-                const DOT_NUM_BLOCKS = (N + TBSIZE - 1) / TBSIZE;
+                const DOT_NUM_BLOCKS = min((N + TBSIZE - 1) / TBSIZE, 256);
                 const numThreads = TBSIZE * DOT_NUM_BLOCKS;
                 var blockSum: [0..#DOT_NUM_BLOCKS] Complex = noinit;
 

@@ -26,7 +26,7 @@ module ComplexMin {
             var result = maxComplex;
 
             if useGPU {
-                const DOT_NUM_BLOCKS = (N + TBSIZE - 1) / TBSIZE;
+                const DOT_NUM_BLOCKS = min((N + TBSIZE - 1) / TBSIZE, 256);
                 const numThreads = TBSIZE * DOT_NUM_BLOCKS;
                 var blockSum: [0..#DOT_NUM_BLOCKS] Complex = noinit;
                 
@@ -71,12 +71,12 @@ module ComplexMin {
                 }
 
                 on hostLocale {
-                    // var blockSumHost: [0..#DOT_NUM_BLOCKS] Complex = blockSum;
-                    // blockSumHost = blockSum;
-                    // for i in blockSumHost.domain {
-                    //     const less = a.re * a.re + a.im * a.im < result.re * result.re + result.im * result.im;
-                    //     result = if less then a else result;
-                    // }
+                    var blockSumHost: [0..#DOT_NUM_BLOCKS] Complex = blockSum;
+                    blockSumHost = blockSum;
+                    for i in blockSumHost.domain {
+                        const c = blockSumHost[i];
+                        result = if c.re * c.re + c.im * c.im < result.re * result.re + result.im * result.im then c else result;
+                    }
                 }
             } else {
                 // Not supported

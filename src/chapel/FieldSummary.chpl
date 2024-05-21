@@ -62,7 +62,7 @@ module FieldSummary {
             var result: FieldStatus;
 
             if useGPU {
-                const DOT_NUM_BLOCKS = (ny + TBSIZE - 1) / TBSIZE;
+                const DOT_NUM_BLOCKS = min((ny + TBSIZE - 1) / TBSIZE, 256);
                 const numThreads = TBSIZE * DOT_NUM_BLOCKS;
                 var blockSum: [0..#DOT_NUM_BLOCKS] FieldStatus = noinit;
 
