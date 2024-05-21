@@ -62,6 +62,21 @@ module Main {
                 // bench_field_summary();
             }
 
+            when "all" {
+                check_for_option(args.size);
+                const N = get_problem_size(args[2]);
+
+                if useGPU {
+                    on reduceLocale {
+                        bench_dot(N);
+                        bench_complex_sum(N);
+                    }
+                } else {
+                    bench_dot(N);
+                    bench_complex_sum(N);
+                }
+            }
+
             otherwise {
                 try! stderr.writeln("Invalid benchmark: ", name);
                 exit(1);

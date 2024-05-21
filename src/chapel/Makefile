@@ -34,7 +34,7 @@ EXE = chapel-reduced
 all: $(EXE)
 
 run:	$(EXE)
-	./$(EXE) dot 268435456
+	./$(EXE) all 268435456
 
 $(EXE):	$(CHPL_SOURCE)
 	chpl $(CHPL_FLAGS) $(CHPL_SOURCE) $(LDFLAGS) -o $@
