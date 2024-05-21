@@ -4,7 +4,7 @@ module Main {
     use Shared;
     use Dot;
     use ComplexSum;
-    // use ComplexSumSOA;
+    use ComplexSumSoA;
     // use ComplexMin;
     use FieldSummary;
 
@@ -49,7 +49,11 @@ module Main {
             when "complex_sum_soa" {
                 check_for_option(args.size);
                 const N = get_problem_size(args[2]);
-                // bench_complex_sum_soa(N);
+                if useGPU {
+                    on reduceLocale do bench_complex_sum_soa(N);
+                } else {
+                    bench_complex_sum_soa(N);
+                }
             }
 
             when "complex_min" {
@@ -74,11 +78,13 @@ module Main {
                     on reduceLocale {
                         bench_dot(N);
                         bench_complex_sum(N);
+                        bench_complex_sum_soa(N);
                         bench_field_summary();
                     }
                 } else {
                     bench_dot(N);
                     bench_complex_sum(N);
+                    bench_complex_sum_soa(N);
                     bench_field_summary();
                 }
             }
