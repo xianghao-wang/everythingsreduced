@@ -9,6 +9,8 @@ elseif (MODEL STREQUAL "oneDPL")
   set(CMAKE_CXX_STANDARD 17)
 elseif (Kokkos_ENABLE_SYCL STREQUAL "On")
   set(CMAKE_CXX_STANDARD 17)
+elseif (MODEL STREQUAL "kokkos")
+  set(CMAKE_CXX_STANDARD_17) # required for Kokkos 4.2
 else()
   set(CMAKE_CXX_STANDARD 14)
 endif()
@@ -27,18 +29,31 @@ project(Reduced
 )
 
 # add the executable
-add_executable(Reduced main.cpp)
+set(EXE_NAME Reduced)
+add_executable(${EXE_NAME} src/main.cpp)
 
 # set benchmark version number
-configure_file(config.hpp.in config.hpp)
-target_include_directories(Reduced PUBLIC "${PROJECT_BINARY_DIR}")
+configure_file(src/config.hpp.in config.hpp)
+target_include_directories(${EXE_NAME} PUBLIC "${PROJECT_BINARY_DIR}")
+
+# copy CXX_EXTRA_FLAGS <- CXX_EXTRA_LINK_FLAGS
+if ((DEFINED CXX_EXTRA_FLAGS) AND (NOT DEFINED CXX_EXTRA_LINK_FLAGS))
+    set(CXX_EXTRA_LINK_FLAGS ${CXX_EXTRA_FLAGS})
+endif ()
+
+list(JOIN CXX_EXTRA_FLAGS " " CXX_EXTRA_FLAGS)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_EXTRA_FLAGS}")
+message("CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}")
+
+target_link_options(${EXE_NAME} PUBLIC LINKER:${CXX_EXTRA_LINKER_FLAGS})
+target_link_options(${EXE_NAME} PUBLIC ${LINK_FLAGS} ${CXX_EXTRA_LINK_FLAGS})
 
 # The implementations of the kernels in different
 # programming models are linked in.
 # Here, we create a library of the implementation,
 # and link in the one selected during CMake configure.
 
-if (MODEL STREQUAL "OpenMP")
+if (MODEL STREQUAL "omp")
   file(GLOB omp_bench_src CONFIGURE_DEPENDS omp/*.cpp)
   add_library(implement_omp ${omp_bench_src})
 
@@ -48,11 +63,11 @@ if (MODEL STREQUAL "OpenMP")
     target_link_libraries(implement_omp PUBLIC OpenMP::OpenMP_CXX)
   endif()
 
-  target_link_libraries(Reduced PUBLIC implement_omp)
+  target_link_libraries(${EXE_NAME} PUBLIC implement_omp)
 
 
-elseif (MODEL STREQUAL "OpenMP-target")
-  file(GLOB omp_target_bench_src CONFIGURE_DEPENDS omp-target/*.cpp)
+elseif (MODEL STREQUAL "omp-target")
+  file(GLOB omp_target_bench_src CONFIGURE_DEPENDS src/omp-target/*.cpp)
 
   # Declare reduction clause is not supported by NVHPC, so exclude the benchmarks which use it
   if (DEFINED NO_COMPLEX_MIN)
@@ -66,8 +81,7 @@ elseif (MODEL STREQUAL "OpenMP-target")
 
   add_library(implement_omp_target ${omp_target_bench_src})
 
-  # Add OpenMP flags
-  find_package(OpenMP)
+  # Add OpenMP flags  
   if(OpenMP_CXX_FOUND)
     target_link_libraries(implement_omp_target PUBLIC OpenMP::OpenMP_CXX)
   endif()
@@ -78,13 +92,13 @@ elseif (MODEL STREQUAL "OpenMP-target")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSING_NVHPC")
   endif()
 
-  target_link_libraries(Reduced PUBLIC implement_omp_target)
+  target_link_libraries(${EXE_NAME} PUBLIC implement_omp_target)
 
 elseif (MODEL STREQUAL "SYCL")
   file(GLOB sycl_bench_src CONFIGURE_DEPENDS sycl/*.cpp)
   add_library(implement_sycl ${sycl_bench_src})
 
-  target_link_libraries(Reduced PUBLIC implement_sycl)
+  target_link_libraries(${EXE_NAME} PUBLIC implement_sycl)
 
 elseif (MODEL STREQUAL "oneDPL")
   file(GLOB oneDPL_bench_src CONFIGURE_DEPENDS oneDPL/*.cpp)
@@ -92,10 +106,10 @@ elseif (MODEL STREQUAL "oneDPL")
 
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_TBB_PAR_BACKEND=0 -DONEDPL_MODEL") # workaround for oneDPL
 
-  target_link_libraries(Reduced PUBLIC implement_oneDPL)
+  target_link_libraries(${EXE_NAME} PUBLIC implement_oneDPL)
 
-elseif(MODEL STREQUAL "Kokkos")
-  file(GLOB kokkos_bench_src CONFIGURE_DEPENDS kokkos/*.cpp)
+elseif(MODEL STREQUAL "kokkos")
+  file(GLOB kokkos_bench_src CONFIGURE_DEPENDS src/kokkos/*.cpp)
 
   # Complex Min breaks with some backends, so give the option to exclude it
   if (DEFINED NO_COMPLEX_MIN)
@@ -110,13 +124,13 @@ elseif(MODEL STREQUAL "Kokkos")
   endif()
 
   # Build Kokkos inline
-  if (NOT DEFINED KOKKOS_SRC)
-    message(FATAL_ERROR "Please set KOKKOS_SRC path to kokkos source")
+  if (NOT DEFINED KOKKOS_IN_TREE)
+    message(FATAL_ERROR "Please set KOKKOS_IN_TREE path to kokkos directory")
   endif()
-  add_subdirectory("${KOKKOS_SRC}")
+  add_subdirectory(${KOKKOS_IN_TREE} ${CMAKE_BINARY_DIR}/kokkos)
   target_link_libraries(implement_kokkos Kokkos::kokkos)
 
-  target_link_libraries(Reduced PUBLIC implement_kokkos)
+  target_link_libraries(${EXE_NAME} PUBLIC implement_kokkos)
 
 elseif(MODEL STREQUAL "RAJA")
   file(GLOB raja_bench_src CONFIGURE_DEPENDS raja/*.cpp)
@@ -166,9 +180,20 @@ elseif(MODEL STREQUAL "RAJA")
   # RAJA moves the binary output location, so move it back
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-  target_link_libraries(Reduced PUBLIC implement_raja)
+  target_link_libraries(${EXE_NAME} PUBLIC implement_raja)
 
 else()
   message(FATAL_ERROR "Please select a model to build: -DMODEL=<model>")
 
 endif()
+
+if (DEFINED MODEL)
+  string(TOLOWER "${MODEL}" MODEL_LOWER)
+  set(BIN_NAME ${MODEL_LOWER}-reduced)
+else ()
+  set(BIN_NAME ${EXE_NAME})
+endif ()
+
+set_target_properties(${EXE_NAME} PROPERTIES OUTPUT_NAME "${BIN_NAME}")
+
+install(TARGETS ${EXE_NAME} DESTINATION bin)
